@@ -32,12 +32,19 @@ Qnote 是一个基于 Python Tkinter 开发的现代化 Markdown 编辑器，支
 - 依赖库：
   ```bash
   pip install markdown
-  启动方式
-bash
-复制
+  ```
+  ## 启动方式
+
+### 方法1
+```bash
 git clone https://github.com/Reoame/Qnote.git
 cd Qnote
 python qnote.py
+```
+### 方法2
+
+在Release页面直接下载可执行程序
+
 快捷键列表
 功能	快捷键
 新建文件	Ctrl + N
