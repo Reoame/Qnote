@@ -1,6 +1,12 @@
 # Qnote - 轻量级Markdown编辑器
 
-![界面截图](p1.png) 
+[中文](README.md)
+[English](README_EN.md)
+
+
+![软件界面的截图](p1.png) 
+
+
 
 Qnote 是一个基于 Python Tkinter 开发的现代化 Markdown 编辑器，支持实时预览、语法高亮和多种实用功能，适合日常笔记记录和技术文档编写。
 
@@ -45,7 +51,7 @@ python qnote.py
 
 在Release页面直接下载可执行程序
 
-快捷键列表
+## 快捷键列表
 功能	快捷键
 新建文件	Ctrl + N
 打开文件	Ctrl + O
@@ -75,7 +81,7 @@ python qnote.py
 
 美观的排版样式
 
-参与贡献
+## 参与贡献
 欢迎通过以下方式参与项目：
 
 提交 Issue 报告问题
@@ -95,6 +101,11 @@ GitHub: Reoame
 
 邮箱：reoame_github@outlook.com
 
+在项目仓库提交issues
+
+## 接下来的计划
+
+添加更多外语版本
 开源协议
 本项目采用 MIT License
 
