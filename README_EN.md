@@ -33,11 +33,9 @@ Word count and cursor position display
 Format Export: Complete HTML export (with support for mathematical formulas)
 Installation and Usage
 Environment Requirements
-Python 3.6+
-Dependent Libraries:
-```bash
-pip install markdown
-```
+- Python 3.6+
+- System:Windows
+
 ## Launch Methods
 ### Method 1
 ```bash
