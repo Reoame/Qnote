@@ -35,10 +35,7 @@ Qnote 是一个基于 Python Tkinter 开发的现代化 Markdown 编辑器，支
 
 ### 环境要求
 - Python 3.6+
-- 依赖库：
-  ```bash
-  pip install markdown
-  ```
+- 系统:Windows
   ## 启动方式
 
 ### 方法1
