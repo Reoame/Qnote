@@ -1,13 +1,9 @@
-#太好了，没有报错，so good!
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, scrolledtext
 import markdown
 import os
 import re
 import webbrowser
-import requests
-import json
-import datetime
 class EnhancedMarkdownEditor:
     
     def __init__(self, root):
@@ -25,14 +21,7 @@ class EnhancedMarkdownEditor:
         self.set_theme("light")
         self.setup_highlight_tags()
         self.setup_autosave()
-        self.blog_config = {
-            "site_title": "我的博客",
-            "author": "匿名",
-            "github_repo": "",
-            "github_token": "",
-            "categories": []
-        }
-        self.load_blog_config()  
+    
         #self.open_web_about()
     
     def setup_ui(self):
