@@ -1,0 +1,33 @@
+{
+    "app_name": "Qnote",
+    "menu": {
+        "file": "File",
+        "new": "New",
+        "open": "Open",
+        "save": "Save",
+        "save_as": "Save As",
+        "export_html": "Export HTML",
+        "exit": "Exit",
+        "help": "Help",
+        "about": "About"
+    },
+    "toolbar": {
+        "new_file": "New File",
+        "open_file": "Open File",
+        "save_file": "Save File",
+        "search": "Search",
+        "header": "Header",
+        "bold": "Bold",
+        "italic": "Italic",
+        "link": "Link",
+        "image": "Image",
+        "math": "Math"
+    },
+    "status_bar": {
+        "ready": "Ready",
+        "line": "Line",
+        "column": "Column",
+        "character_count": "Characters",
+        "word_count": "Words"
+    }
+}

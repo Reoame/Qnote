@@ -1,0 +1,33 @@
+{
+    "app_name": "Qnote",
+    "menu": {
+        "file": "文件",
+        "new": "新建",
+        "open": "打开",
+        "save": "保存",
+        "save_as": "另存为",
+        "export_html": "导出HTML",
+        "exit": "退出",
+        "help": "帮助",
+        "about": "关于"
+    },
+    "toolbar": {
+        "new_file": "新建文件",
+        "open_file": "打开文件",
+        "save_file": "保存文件",
+        "search": "查找",
+        "header": "标题",
+        "bold": "加粗",
+        "italic": "倾斜",
+        "link": "链接",
+        "image": "图片",
+        "math": "公式"
+    },
+    "status_bar": {
+        "ready": "就绪",
+        "line": "行",
+        "column": "列",
+        "character_count": "字符数",
+        "word_count": "单词数"
+    }
+}
