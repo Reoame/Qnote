@@ -4,16 +4,20 @@ import markdown
 import os
 import re
 import webbrowser
+from glob import glob
+import networkx as nx
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 class EnhancedMarkdownEditor:
     def __init__(self, root):
         self.root = root
-        self.root.title("Qnote")
+        self.root.title("Qnote2")
         self.root.geometry("1400x900")
         self.current_file = None
         self.theme_mode = "light"
-        self.setup_ui()
         self.modified = False
+        self.setup_ui()
         self.create_menu()
         self.create_toolbar()
         self.create_statusbar()
@@ -21,15 +25,14 @@ class EnhancedMarkdownEditor:
         self.set_theme("light")
         self.setup_highlight_tags()
         self.setup_preview_style()
-        #self.markdown_help()
         self.setup_autosave()
 
     def setup_ui(self):
-        main_paned = ttk.PanedWindow(self.root, orient=tk.HORIZONTAL)
-        main_paned.pack(expand=True, fill='both', padx=5, pady=5)
+        self.main_paned = ttk.PanedWindow(self.root, orient=tk.HORIZONTAL)
+        self.main_paned.pack(expand=True, fill='both', padx=5, pady=5)
 
         # 左侧编辑器
-        self.editor_frame = ttk.Frame(main_paned)
+        self.editor_frame = ttk.Frame(self.main_paned)
         self.text_area = scrolledtext.ScrolledText(
             self.editor_frame,
             wrap=tk.WORD,
@@ -39,10 +42,10 @@ class EnhancedMarkdownEditor:
             maxundo=-1
         )
         self.text_area.pack(expand=True, fill='both')
-        main_paned.add(self.editor_frame, weight=1)
+        self.main_paned.add(self.editor_frame, weight=2)
 
         # 右侧预览面板
-        self.preview_frame = ttk.Frame(main_paned)
+        self.preview_frame = ttk.Frame(self.main_paned)
         self.preview_paned = ttk.PanedWindow(self.preview_frame, orient=tk.VERTICAL)
         
         # 大纲视图
@@ -58,124 +61,52 @@ class EnhancedMarkdownEditor:
         )
         self.preview_paned.add(self.preview_area, weight=3)
         self.preview_paned.pack(expand=True, fill='both')
-        main_paned.add(self.preview_frame, weight=1)
+        self.main_paned.add(self.preview_frame, weight=2)
 
         self.text_area.bind('<KeyRelease>', self.on_content_changed)
-
-    def setup_preview_style(self):
-        """配置预览区域的文本样式"""
-        self.preview_area.tag_configure("h1", font=('Helvetica', 20, 'bold'), foreground="#2c3e50")
-        self.preview_area.tag_configure("h2", font=('Helvetica', 18, 'bold'), foreground="#2c3e50")
-        self.preview_area.tag_configure("h3", font=('Helvetica', 16, 'bold'), foreground="#2c3e50")
-        self.preview_area.tag_configure("bold", font=('Helvetica', 12, 'bold'))
-        self.preview_area.tag_configure("italic", font=('Helvetica', 12, 'italic'))
-        self.preview_area.tag_configure("code", font=('Consolas', 12), background="#f0f0f0")
-        self.preview_area.tag_configure("quote", foreground="#666666", lmargin1=20, spacing3=5)
-        self.preview_area.tag_configure("link", foreground="#3498db", underline=1)
-        self.preview_area.tag_configure("list", lmargin1=20, spacing3=5)
-    
-    def update_preview(self):
-        """将Markdown转换为带格式的预览"""
-        self.preview_area.config(state='normal')
-        self.preview_area.delete(1.0, tk.END)
-        
-        content = self.text_area.get(1.0, tk.END)
-        lines = content.split('\n')
-        
-        for line in lines:
-            if re.match(r'^#+ ', line):
-                self.process_header(line)
-            elif re.match(r'^[\-\*\+] ', line):
-                self.process_list(line)
-            elif line.startswith('> '):
-                self.process_quote(line)
-            elif line.startswith('    ') or line.startswith('\t'):
-                self.process_code(line)
-            else:
-                self.process_inline_styles(line)
-        
-        self.preview_area.config(state='disabled')
-
-    def process_header(self, line):
-        level = len(re.match(r'^(#+)', line).group(1))
-        text = re.sub(r'^#+ ', '', line)
-        tag = f"h{min(level, 3)}"
-        self.preview_area.insert(tk.END, text + '\n', tag)
-
-    def process_list(self, line):
-        self.preview_area.insert(tk.END, '• ' + line[2:] + '\n', ("list",))
-
-    def process_quote(self, line):
-        self.preview_area.insert(tk.END, line[2:] + '\n', ("quote",))
-
-    def process_code(self, line):
-        self.preview_area.insert(tk.END, line.strip() + '\n', ("code",))
-
-    def process_inline_styles(self, line):
-        patterns = [
-            (r'\*\*(.*?)\*\*', "bold"),
-            (r'\*(.*?)\*', "italic"),
-            (r'`(.*?)`', "code"),
-            (r'\[(.*?)\]\((.*?)\)', "link")
-        ]
-        
-        temp_line = line
-        for pattern, tag in patterns:
-            parts = re.split(pattern, temp_line)
-            temp_line = ""
-            for i in range(len(parts)):
-                if i % 2 == 1:
-                    self.preview_area.insert(tk.END, parts[i], tag)
-                else:
-                    self.preview_area.insert(tk.END, parts[i])
-            temp_line = self.preview_area.get("end-1c linestart", "end-1c")
-            self.preview_area.delete("end-1c linestart", "end-1c")
-        
-        self.preview_area.insert(tk.END, '\n')
-
-    # 以下是原有功能的完整实现
-    def helpus(self):
-        webbrowser.open("https://github.com/Reoame/Qnote/issues")
-
-    def open_web_about(self):
-        webbrowser.open("https://reoame.github.io/Mypage/about.html")
 
     def create_menu(self):
         menu_bar = tk.Menu(self.root)
         
+        # 文件菜单
         file_menu = tk.Menu(menu_bar, tearoff=0)
         file_menu.add_command(label="新建", command=self.new_file, accelerator="Ctrl+N")
         file_menu.add_command(label="打开", command=self.open_file, accelerator="Ctrl+O")
+        
         file_menu.add_command(label="保存", command=self.save_file, accelerator="Ctrl+S")
         file_menu.add_command(label="另存为", command=self.save_as_file)
         file_menu.add_separator()
         file_menu.add_command(label="导出HTML", command=self.export_html)
         file_menu.add_separator()
         file_menu.add_command(label="退出", command=self.root.quit)
-        file_menu.add_command(label="给我们提建议", command=self.helpus)
+        file_menu.add_command(label="反馈建议", command=self.helpus)
         file_menu.add_command(label="关于", command=self.open_web_about)
-        menu_bar.add_cascade(label="文件", menu=file_menu)
-
+        
+        # 编辑菜单
         edit_menu = tk.Menu(menu_bar, tearoff=0)
         edit_menu.add_command(label="撤销", command=self.undo, accelerator="Ctrl+Z")
         edit_menu.add_command(label="重做", command=self.redo, accelerator="Ctrl+Y")
         edit_menu.add_separator()
         edit_menu.add_command(label="查找替换", command=self.show_search_dialog)
-        menu_bar.add_cascade(label="编辑", menu=edit_menu)
-
-        view_menu = tk.Menu(menu_bar, tearoff=0)
-        view_menu.add_command(label="切换主题", command=self.toggle_theme)
-        view_menu.add_checkbutton(label="语法高亮", variable=tk.BooleanVar(value=True))
-        menu_bar.add_cascade(label="视图", menu=view_menu)
+        
+        # 视图菜单
+        self.view_menu = tk.Menu(menu_bar, tearoff=0)
+        self.view_menu.add_command(label="切换主题", command=self.toggle_theme)
+        self.view_menu.add_checkbutton(label="语法高亮", variable=tk.BooleanVar(value=True))
+        
+        # 帮助菜单
         help_menu = tk.Menu(menu_bar, tearoff=0)
+        help_menu.add_command(label="Markdown语法", command=self.markdown_help)
+        help_menu.add_command(label="GitHub仓库", command=self.github_help)
+        
+        # 组装菜单栏
+        menu_bar.add_cascade(label="文件", menu=file_menu)
+        menu_bar.add_cascade(label="编辑", menu=edit_menu)
+        menu_bar.add_cascade(label="视图", menu=self.view_menu)
         menu_bar.add_cascade(label="帮助", menu=help_menu)
+        
         self.root.config(menu=menu_bar)
-        help_menu.add_command(label="Markdown语法教学", command=self.markdown_help)
-        help_menu.add_command(label="Github仓库", command=self.github_help)
-    def markdown_help(self):
-        webbrowser.open("https://markdown.com.cn/")
-    def github_help(self):
-        webbrowser.open("https://github.com/Reoame/Qnote/issues")
+
     def create_toolbar(self):
         toolbar = ttk.Frame(self.root)
         toolbar.pack(fill=tk.X, padx=2, pady=2)
@@ -188,7 +119,7 @@ class EnhancedMarkdownEditor:
             ("#", lambda: self.insert_header()),
             ("B", lambda: self.wrap_selection("**")),
             ("I", lambda: self.wrap_selection("*")),
-            ("C", lambda: self.wrap_selection("``")),
+            ("C", lambda: self.wrap_selection("`")),
             ("🔗", self.insert_link),
             ("🖼️", self.insert_image),
             ("Σ", lambda: self.insert_math()),
@@ -304,6 +235,7 @@ class EnhancedMarkdownEditor:
         else:
             self.save_as_file()
 
+
     def save_as_file(self):
         file_path = filedialog.asksaveasfilename(
             defaultextension=".md",
@@ -344,10 +276,9 @@ class EnhancedMarkdownEditor:
             messagebox.showerror("导出失败", f"保存文件时出错:\n{str(e)}")
 
     def get_preview_styles(self):
+        
         return """
-        /* 基础设置 */
-            /* 基础设置 */
-:root {
+    :root {
     --primary-color: #2c3e50;
     --accent-color: #3498db;
     --text-color: #34495e;
@@ -357,7 +288,7 @@ class EnhancedMarkdownEditor:
     --shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-/* 主体样式 */
+/* Main styles */
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 
                  Oxygen, Ubuntu, Cantarell, 'Open Sans', sans-serif;
@@ -370,7 +301,7 @@ body {
     letter-spacing: 0.02em;
 }
 
-/* 标题样式 */
+/* Header styles */
 h1, h2, h3 {
     color: var(--primary-color);
     position: relative;
@@ -388,7 +319,7 @@ h1::after, h2::after {
     background: linear-gradient(90deg, var(--accent-color), transparent);
 }
 
-/* 代码块样式 */
+/* Code block styles */
 pre {
     background: linear-gradient(145deg, #ffffff, var(--code-bg));
     padding: 1.5rem;
@@ -414,7 +345,7 @@ pre code {
     padding: 0;
 }
 
-/* 表格样式 */
+/* Table styles */
 table {
     width: 100%;
     border-collapse: collapse;
@@ -442,7 +373,7 @@ tr:hover td {
     background-color: rgba(var(--accent-color), 0.03);
 }
 
-/* 引用块样式 */
+/* Blockquote styles */
 blockquote {
     border-left: 4px solid var(--accent-color);
     padding: 10px;
@@ -452,7 +383,7 @@ blockquote {
     color: var(--primary-color);
 }
 
-/* 链接样式 */
+/* Link styles */
 a {
     color: var(--accent-color);
     text-decoration: none;
@@ -479,13 +410,13 @@ a:hover::after {
     width: 100%;
 }
 
-/* 数学公式样式 */
+/* Math formula styles */
 .math {
     color: #c0392b;
     font-family: "TeX", "Latin Modern Math", serif;
 }
 
-/* 响应式设计 */
+/* Responsive design */
 @media (max-width: 768px) {
     body {
         padding: 1rem;
@@ -499,7 +430,7 @@ a:hover::after {
     }
 }
 
-/* 滚动条美化 */
+/* Scrollbar beautification */
 ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
@@ -548,6 +479,7 @@ a:hover::after {
     def insert_link(self):
         self.text_area.insert(tk.INSERT, "[显示文本](http://)")
         self.text_area.mark_set(tk.INSERT, "insert-9c")
+
     def insert_image(self):
         self.text_area.insert(tk.INSERT, "![描述](图片地址)")
         self.text_area.mark_set(tk.INSERT, "insert-9c")
@@ -630,7 +562,429 @@ a:hover::after {
         self.root.bind('<Control-z>', lambda e: self.undo())
         self.root.bind('<Control-y>', lambda e: self.redo())
 
+    # 辅助方法
+    def helpus(self):
+        webbrowser.open("https://github.com/Reoame/Qnote/issues")
+
+    def open_web_about(self):
+        webbrowser.open("https://reoame.github.io/Mypage/about.html")
+
+    def markdown_help(self):
+        webbrowser.open("https://markdown.com.cn/")
+
+    def github_help(self):
+        webbrowser.open("https://github.com/Reoame/Qnote/issues")
+
+    def setup_preview_style(self):
+        self.preview_area.tag_configure("h1", font=('Helvetica', 20, 'bold'), foreground="#2c3e50")
+        self.preview_area.tag_configure("h2", font=('Helvetica', 18, 'bold'), foreground="#2c3e50")
+        self.preview_area.tag_configure("h3", font=('Helvetica', 16, 'bold'), foreground="#2c3e50")
+        self.preview_area.tag_configure("bold", font=('Helvetica', 12, 'bold'))
+        self.preview_area.tag_configure("italic", font=('Helvetica', 12, 'italic'))
+        self.preview_area.tag_configure("code", font=('Consolas', 12), background="#f0f0f0")
+        self.preview_area.tag_configure("quote", foreground="#666666", lmargin1=20, spacing3=5)
+        self.preview_area.tag_configure("link", foreground="#3498db", underline=1)
+        self.preview_area.tag_configure("list", lmargin1=20, spacing3=5)
+
+    def update_preview(self):
+        self.preview_area.config(state='normal')
+        self.preview_area.delete(1.0, tk.END)
+        
+        content = self.text_area.get(1.0, tk.END)
+        lines = content.split('\n')
+        
+        for line in lines:
+            if re.match(r'^#+ ', line):
+                self.process_header(line)
+            elif re.match(r'^[\-\*\+] ', line):
+                self.process_list(line)
+            elif line.startswith('> '):
+                self.process_quote(line)
+            elif line.startswith('    ') or line.startswith('\t'):
+                self.process_code(line)
+            else:
+                self.process_inline_styles(line)
+        
+        self.preview_area.config(state='disabled')
+
+    def process_header(self, line):
+        level = len(re.match(r'^(#+)', line).group(1))
+        text = re.sub(r'^#+ ', '', line)
+        tag = f"h{min(level, 3)}"
+        self.preview_area.insert(tk.END, text + '\n', tag)
+
+    def process_list(self, line):
+        self.preview_area.insert(tk.END, '• ' + line[2:] + '\n', ("list",))
+
+    def process_quote(self, line):
+        self.preview_area.insert(tk.END, line[2:] + '\n', ("quote",))
+
+    def process_code(self, line):
+        self.preview_area.insert(tk.END, line.strip() + '\n', ("code",))
+
+    def process_inline_styles(self, line):
+        patterns = [
+            (r'\*\*(.*?)\*\*', "bold"),
+            (r'\*(.*?)\*', "italic"),
+            (r'`(.*?)`', "code"),
+            (r'\[(.*?)\]\((.*?)\)', "link")
+        ]
+        
+        temp_line = line
+        for pattern, tag in patterns:
+            parts = re.split(pattern, temp_line)
+            temp_line = ""
+            for i in range(len(parts)):
+                if i % 2 == 1:
+                    self.preview_area.insert(tk.END, parts[i], tag)
+                else:
+                    self.preview_area.insert(tk.END, parts[i])
+            temp_line = self.preview_area.get("end-1c linestart", "end-1c")
+            self.preview_area.delete("end-1c linestart", "end-1c")
+        
+        self.preview_area.insert(tk.END, '\n')
+
+class KnowledgeGraphEditor(EnhancedMarkdownEditor):
+    def __init__(self, root):
+        super().__init__(root)
+        self.custom_css = None
+        self.notes_dir = os.path.expanduser("~/Qnotes")
+        self.knowledge_graph = KnowledgeGraph()
+        self.setup_customizations()
+
+        self.setup_graph_view()
+        self.setup_note_structure()
+
+    def setup_customizations(self):
+        """扩展视图菜单"""
+        self.view_menu.add_separator()
+        
+        # 知识图谱子菜单
+        kg_menu = tk.Menu(self.view_menu, tearoff=0)
+        kg_menu.add_command(label="显示图谱", command=self.toggle_graph)
+        kg_menu.add_command(label="刷新图谱", command=self.update_graph)
+        self.view_menu.add_cascade(label="知识图谱", menu=kg_menu)
+
+
+    def setup_graph_view(self):
+        self.graph_frame = ttk.Frame(self.preview_paned)
+        self.figure = plt.Figure(figsize=(5,4), dpi=100)
+        self.canvas = FigureCanvasTkAgg(self.figure, self.graph_frame)
+        self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+        self.preview_paned.add(self.graph_frame, weight=2)
+        self.update_graph()
+
+    def setup_note_structure(self):
+        self.tree_pane = ttk.PanedWindow(self.main_paned, orient=tk.VERTICAL)
+        self.note_tree = ttk.Treeview(self.tree_pane)
+        self.note_tree.pack(expand=True, fill=tk.BOTH)
+        self.tree_pane.add(self.note_tree)
+        self.main_paned.insert(0, self.tree_pane)
+    def reset_custom_css(self):
+        self.custom_css = None
+        self.update_preview()
+        messagebox.showinfo("提示", "CSS样式已重置为默认")
+
+    def update_preview(self):
+        self.preview_area.config(state='normal')
+        self.preview_area.delete(1.0, tk.END)
+        if self.custom_css:
+            self.preview_area.insert(tk.END, f'<style>{self.custom_css}</style>\n', 'css')
+        super().update_preview()
+    def update_graph(self):
+        self.knowledge_graph.update_graph(self.notes_dir)
+        self.figure.clf()
+        ax = self.figure.add_subplot(111)
+        pos = nx.spring_layout(self.knowledge_graph.graph)
+        nx.draw(self.knowledge_graph.graph, pos, ax=ax, with_labels=True, 
+                node_color='skyblue', node_size=2000, arrowsize=20)
+        self.canvas.draw()
+        self.root.after(5000, self.update_graph)
+
+    def toggle_graph(self):
+        if self.graph_frame.winfo_ismapped():
+            self.preview_paned.forget(self.graph_frame)
+        else:
+            self.preview_paned.add(self.graph_frame)
+
+
+
+    def export_html(self):
+        file_path = filedialog.asksaveasfilename(
+            defaultextension=".html",
+            filetypes=[("HTML文件", "*.html")]
+        )
+        if file_path:
+            content = self.text_area.get("1.0", "end-1c")
+            html = markdown.markdown(content, extensions=['tables', 'fenced_code'])
+            css = ''':root {
+    --primary-color: #2c3e50;
+    --accent-color: #3498db;
+    --text-color: #34495e;
+    --background-color: #f8f9fa;
+    --code-bg: #f4f4f4;
+    --border-radius: 8px;
+    --shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Main styles */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 
+                 Oxygen, Ubuntu, Cantarell, 'Open Sans', sans-serif;
+    line-height: 1.8;
+    color: var(--text-color);
+    background-color: var(--background-color);
+    max-width: 800px;
+    margin: 2rem auto;
+    padding: 2rem;
+    letter-spacing: 0.02em;
+}
+
+/* Header styles */
+h1, h2, h3 {
+    color: var(--primary-color);
+    position: relative;
+    padding-bottom: 0.5rem;
+    margin: 2rem 0 1.5rem;
+}
+
+h1::after, h2::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 3rem;
+    height: 3px;
+    background: linear-gradient(90deg, var(--accent-color), transparent);
+}
+
+/* Code block styles */
+pre {
+    background: linear-gradient(145deg, #ffffff, var(--code-bg));
+    padding: 1.5rem;
+    border-radius: var(--border-radius);
+    overflow-x: auto;
+    box-shadow: var(--shadow);
+    margin: 1.5rem 0;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+code {
+    font-family: 'Fira Code', 'Consolas', monospace;
+    background: rgba(var(--accent-color), 0.1);
+    color: #e74c3c;
+    padding: 0.2em 0.4em;
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+pre code {
+    background: transparent;
+    color: inherit;
+    padding: 0;
+}
+
+/* Table styles */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 2rem 0;
+    box-shadow: var(--shadow);
+    border-radius: var(--border-radius);
+    overflow: hidden;
+}
+
+th {
+    background-color: var(--accent-color);
+    color: white;
+    font-weight: 600;
+    padding: 1rem;
+    text-align: left;
+}
+
+td {
+    padding: 1rem;
+    background: white;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+tr:hover td {
+    background-color: rgba(var(--accent-color), 0.03);
+}
+
+/* Blockquote styles */
+blockquote {
+    border-left: 4px solid var(--accent-color);
+    padding: 10px;
+    background: rgba(var(--accent-color), 0.03);
+    border-radius: 0 var(--border-radius) var(--border-radius) 0;
+    font-style: italic;
+    color: var(--primary-color);
+}
+
+/* Link styles */
+a {
+    color: var(--accent-color);
+    text-decoration: none;
+    position: relative;
+    transition: color 0.3s ease;
+}
+
+a::after {
+    content: "";
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 0;
+    height: 1px;
+    background: currentColor;
+    transition: width 0.3s ease;
+}
+
+a:hover {
+    color: #2980b9;
+}
+
+a:hover::after {
+    width: 100%;
+}
+
+/* Math formula styles */
+.math {
+    color: #c0392b;
+    font-family: "TeX", "Latin Modern Math", serif;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    body {
+        padding: 1rem;
+        margin: 1rem;
+    }
+    
+    pre {
+        border-radius: 0;
+        margin-left: -1rem;
+        margin-right: -1rem;
+    }
+}
+
+/* Scrollbar beautification */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-color);
+}'''
+            full_html = f"""<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>{os.path.splitext(os.path.basename(file_path))[0]}</title>
+    <style>{css}</style>
+    
+</head>
+<body>
+    <article>{html}</article>
+</body>
+</html>"""
+            try:
+                with open(file_path, "w", encoding="utf-8") as f:
+                    f.write(full_html)
+                messagebox.showinfo("导出成功", f"HTML文件已保存到:\n{file_path}")
+            except Exception as e:
+                messagebox.showerror("导出失败", f"保存文件时出错:\n{str(e)}")
+
+class KnowledgeGraph:
+    def find_or_create_node(self, parent, path):
+ 
+        for item in self.note_tree.get_children(parent):
+            if self.note_tree.item(item, "text") == os.path.basename(path):
+                return item
+            self.note_tree.insert(parent, "end", text=os.path.basename(path), values=[path], open=True)
+    def __init__(self):
+        self.graph = nx.DiGraph()
+        self.current_folder = None
+        self.tree_context_menu = None
+       
+        
+    def update_graph(self, notes_dir):
+        self.graph.clear()
+        md_files = glob(os.path.join(notes_dir, '**/*.md'), recursive=True)
+        
+        for file in md_files:
+            with open(file, 'r', encoding='utf-8') as f:
+                content = f.read()
+                links = re.findall(r'\[\[(.*?)\]\]', content)
+                source = os.path.splitext(os.path.basename(file))[0]
+                self.graph.add_node(source)
+                for target in links:
+                    self.graph.add_edge(source, target)
+        def setup_note_structure(self):
+        # 创建新的垂直分割面板
+            self.tree_pane = ttk.PanedWindow(self.main_paned, orient=tk.VERTICAL)
+        
+        # 配置Treeview
+            self.note_tree = ttk.Treeview(self.tree_pane)
+            self.note_tree["columns"] = ("path")
+            self.note_tree.column("#0", width=250, minwidth=150)
+            self.note_tree.column("path", width=300, minwidth=200)
+            self.note_tree.heading("#0", text="笔记结构")
+            self.note_tree.heading("path", text="文件路径")
+        
+        # 添加滚动条
+            scroll = ttk.Scrollbar(self.tree_pane, orient="vertical", command=self.note_tree.yview)
+            self.note_tree.configure(yscrollcommand=scroll.set)
+        
+        # 布局
+            self.tree_pane.add(self.note_tree, weight=1)
+            self.tree_pane.add(scroll)
+        
+        # 插入到主分割窗口最左侧
+            self.main_paned.insert(0, self.tree_pane, weight=1)  # 增加weight保证初始宽度
+            self.load_note_structure()
+
+    def load_note_structure(self):
+        for root_dir, dirs, files in os.walk(self.notes_dir):
+            # 转换路径为相对路径显示
+            rel_path = os.path.relpath(root_dir, self.notes_dir)
+            if rel_path == ".":
+                parent = ""
+            else:
+                parent = self.note_tree.find_node_by_path(rel_path)
+            
+            node = self.note_tree.insert(
+                parent, 
+                "end", 
+                text=os.path.basename(root_dir),
+                values=[root_dir],
+                open=True
+            )
+            
+            for f in sorted(files):
+                if f.endswith(".md"):
+                    full_path = os.path.join(root_dir, f)
+                    self.note_tree.insert(
+                        node, 
+                        "end", 
+                        text=f, 
+                        values=[full_path],
+                        tags=("file",)
+                    )
+        
+
 if __name__ == "__main__":
     root = tk.Tk()
-    app = EnhancedMarkdownEditor(root)
+    app = KnowledgeGraphEditor(root)
     root.mainloop()
