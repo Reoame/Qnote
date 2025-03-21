@@ -492,7 +492,7 @@ a:hover::after {
         search_win = tk.Toplevel(self.root)
         search_win.resizable(False, False)
         search_win.title("查找替换")
-        
+        search_win.iconbitmap('favicon.ico')
         ttk.Label(search_win, text="查找:").grid(row=0, column=0, padx=5, pady=5)
         self.search_entry = ttk.Entry(search_win, width=30)
         self.search_entry.grid(row=0, column=1, padx=5, pady=5)
@@ -986,5 +986,6 @@ class KnowledgeGraph:
 
 if __name__ == "__main__":
     root = tk.Tk()
+    root.iconbitmap('favicon.ico')
     app = KnowledgeGraphEditor(root)
     root.mainloop()
